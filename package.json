@@ -1,0 +1,26 @@
+{
+  "name": "actions2",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/muratkaraatwork/actions2.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/muratkaraatwork/actions2/issues"
+  },
+  "homepage": "https://github.com/muratkaraatwork/actions2#readme",
+  "description": "",
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.10.1"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "oracledb": "^6.10.0"
+  }
+}

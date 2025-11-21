@@ -2,7 +2,9 @@
   "name": "actions2",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "mtest": "npx playwright test tests/example.spec.ts"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/muratkaraatwork/actions2.git"

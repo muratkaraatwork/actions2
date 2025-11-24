@@ -22,33 +22,23 @@ test('get started link', async ({ page }) => {
 });
 
 test('get credentials ', async () => {
-  const isJenkins = !!process.env.JENKINS_URL;
+ const isJenkins = !!process.env.JENKINS_URL;
 
-  if (!isJenkins) {
-    // LOCAL ÇALIŞMA
+  if (isJenkins) {
+    console.log("Jenkins detected. Reading secrets from Vault...");
+
+    console.log("DB_USER:", process.env.DB_USER);
+    console.log("DB_PASSWORD:", process.env.DB_PASSWORD);
+
+    expect(process.env.DB_USER).toBeTruthy();
+    expect(process.env.DB_PASSWORD).toBeTruthy();
+
+  } else {
+    console.log("Local detected. Reading secrets from .env");
+
     const { DB_USER, DB_PASSWORD } = await loadConfig();
-    console.log("Local .env values:");
-    console.log("User:", DB_USER);
-    console.log("Password:", DB_PASSWORD);
-    return;
+
+    console.log("Local DB_USER:", DB_USER);
+    console.log("Local DB_PASSWORD:", DB_PASSWORD);
   }
-
-  // JENKINS ÇALIŞIYOR → VAULT'TAN OKU
-  console.log("Jenkins detected. Reading secrets from Vault...");
-
-  const vaultOptions = vaultEnvConfig();
-  const dbKeys = vaultDbKeysFromEnv(); 
-
-  if (!vaultOptions || !dbKeys) {
-    throw new Error("Vault config environment variables missing!");
-  }
-
-  const vault = new VaultReader(vaultOptions);
-
-  const username = await vault.readSecret(dbKeys.path, dbKeys.userKey);
-  const password = await vault.readSecret(dbKeys.path, dbKeys.passwordKey);
-
-  console.log("Vault credentials:");
-  console.log("User:", username);
-  console.log("Password:", password);
 });

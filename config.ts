@@ -18,7 +18,7 @@ export async function loadConfig() {
  const cfg = vaultConfigFromEnv();
   const vault = new VaultClient(cfg!);
 
-  const data = await vault.readSecret("qa-automation/data/DB_CREDS/PAPI_E");
+  const data = await vault.readSecret("qa-automation/DB_CREDS/PAPI_E");
 
   console.log("USER:", data.username);
   console.log("PASS:", data.password);

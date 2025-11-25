@@ -1,5 +1,5 @@
 import { config as dotenvConfig } from "dotenv";
-import { VaultClient, vaultConfigFromEnv } from "../actions2/vault";
+import { VaultClient, vaultConfigFromEnv } from "./vault";
 
 export async function loadConfig() {
   const isJenkins = !!process.env.JENKINS_URL;

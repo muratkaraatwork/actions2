@@ -1,6 +1,7 @@
-export type VaultClientOptions = {
+export type AppRoleAuthOptions = {
   address: string;
-  token: string;
+  roleId: string;
+  secretId: string;
   namespace?: string;
   timeoutMs?: number;
 };
@@ -8,33 +9,95 @@ export type VaultClientOptions = {
 type FetchFn = typeof fetch;
 
 /**
- * Minimal HashiCorp Vault KV v2 reader using the HTTP API and built-in fetch.
- * Keeps dependencies out while letting the framework source secrets securely.
+ * Vault KV v2 reader with AppRole authentication.
+ * Uses native fetch and no external dependencies.
  */
-export class VaultReader {
+export class VaultClient {
   private readonly address: string;
-  private readonly token: string;
+  private readonly roleId: string;
+  private readonly secretId: string;
   private readonly namespace?: string;
   private readonly timeoutMs: number;
   private readonly fetchFn: FetchFn;
 
-  constructor(options: VaultClientOptions, fetchFn: FetchFn = fetch) {
+  private token: string | null = null;
+
+  constructor(options: AppRoleAuthOptions, fetchFn: FetchFn = fetch) {
     this.address = options.address.replace(/\/+$/, "");
-    this.token = options.token;
+    this.roleId = options.roleId;
+    this.secretId = options.secretId;
     this.namespace = options.namespace;
     this.timeoutMs = options.timeoutMs ?? 5000;
     this.fetchFn = fetchFn;
   }
 
-  async readSecret(path: string, key: string): Promise<string> {
+  /** 
+   * Performs AppRole Authentication and retrieves a client token.
+   */
+  private async loginWithAppRole(): Promise<void> {
+    const url = `${this.address}/v1/auth/approle/login`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+
     try {
-      const url = `${this.address}/v1/${path.replace(/^\/+/, "")}`;
+      const response = await this.fetchFn(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(this.namespace ? { "X-Vault-Namespace": this.namespace } : {}),
+        },
+        body: JSON.stringify({
+          role_id: this.roleId,
+          secret_id: this.secretId,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(
+          `Vault AppRole login failed (${response.status}): ${text}`
+        );
+      }
+
+      const json = await response.json();
+      this.token = json?.auth?.client_token;
+
+      if (!this.token) {
+        throw new Error("Vault login returned no token.");
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
+   * Ensures a valid token exists. If not, login again.
+   */
+  private async ensureToken(): Promise<void> {
+    if (!this.token) {
+      await this.loginWithAppRole();
+      return;
+    }
+
+    // Optional: Add token lookup check and refresh logic
+  }
+
+  /**
+   * Reads a KV v2 secret at a given path.
+   */
+  async readSecret(path: string): Promise<Record<string, any>> {
+    await this.ensureToken();
+
+    const url = `${this.address}/v1/${path.replace(/^\/+/, "")}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
       const response = await this.fetchFn(url, {
         method: "GET",
         headers: {
-          "X-Vault-Token": this.token,
+          "X-Vault-Token": this.token!,
           ...(this.namespace ? { "X-Vault-Namespace": this.namespace } : {}),
         },
         signal: controller.signal,
@@ -43,67 +106,35 @@ export class VaultReader {
       if (!response.ok) {
         const text = await response.text();
         throw new Error(
-          `Vault returned ${response.status} ${response.statusText}: ${text}`
+          `Vault read failed (${response.status}): ${text}`
         );
       }
 
-      const data = await response.json();
-      const value =
-        data?.data?.data?.[key] ?? // KV v2 shape
-        data?.data?.[key]; // KV v1 shape
-
-      if (value === undefined) {
-        throw new Error(`Key "${key}" not found at path "${path}"`);
-      }
-
-      return value;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new Error(`Timed out reading Vault path "${path}"`);
-      }
-      throw error;
+      const json = await response.json();
+      return json?.data?.data ?? json?.data ?? {};
     } finally {
       clearTimeout(timeout);
     }
   }
 }
 
-export function vaultEnvConfig() {
+/**
+ * Loads Vault AppRole environment variables.
+ */
+export function vaultConfigFromEnv(): AppRoleAuthOptions | null {
   const address = process.env.VAULT_ADDR;
-  const token = process.env.VAULT_TOKEN;
-  const namespace = process.env.VAULT_NAMESPACE;
+  const roleId = process.env.VAULT_ROLE_ID;
+  const secretId = process.env.VAULT_SECRET_ID;
 
-  if (!address || !token) {
+  if (!address || !roleId || !secretId) {
     return null;
   }
 
   return {
     address,
-    token,
-    namespace,
+    roleId,
+    secretId,
+    namespace: process.env.VAULT_NAMESPACE,
     timeoutMs: Number(process.env.VAULT_TIMEOUT_MS ?? 5000),
-  } satisfies VaultClientOptions;
-}
-
-export type VaultDbKeys = {
-  path: string;
-  userKey: string;
-  passwordKey: string;
-  hostKey?: string;
-  portKey?: string;
-  sidKey?: string;
-};
-
-export function vaultDbKeysFromEnv(): VaultDbKeys | null {
-  const path = process.env.VAULT_DB_PATH;
-  if (!path) return null;
-
-  return {
-    path,
-    userKey: process.env.VAULT_DB_USER_KEY ?? "username",
-    passwordKey: process.env.VAULT_DB_PASSWORD_KEY ?? "password",
-    hostKey: process.env.VAULT_DB_HOST_KEY ?? "host",
-    portKey: process.env.VAULT_DB_PORT_KEY ?? "port",
-    sidKey: process.env.VAULT_DB_SID_KEY ?? "sid",
   };
 }

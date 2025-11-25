@@ -1,5 +1,5 @@
 import { config as dotenvConfig } from "dotenv";
-import { VaultReader, vaultEnvConfig, vaultDbKeysFromEnv } from "./vault";
+import { VaultClient, vaultConfigFromEnv } from "../actions2/vault";
 
 export async function loadConfig() {
   const isJenkins = !!process.env.JENKINS_URL;
@@ -15,20 +15,17 @@ export async function loadConfig() {
 
   console.log("Jenkins ortamı — credentials Vault’tan okunacak.");
 
-  // VAULT ENV değişkenlerini oku
-  const vaultOptions = vaultEnvConfig();
-  const dbKeys = vaultDbKeysFromEnv();
+ const cfg = vaultConfigFromEnv();
+  const vault = new VaultClient(cfg!);
 
-  if (!vaultOptions || !dbKeys) {
-    throw new Error("Vault config missing (VAULT_ADDR, VAULT_TOKEN, VAULT_DB_PATH).");
-  }
+  const data = await vault.readSecret("qa-automation/data/DB_CREDS/PAPI_E");
 
-  // Vault reader oluştur
-  const reader = new VaultReader(vaultOptions);
+  console.log("USER:", data.username);
+  console.log("PASS:", data.password);
 
   // Vault içinden secretları oku
-  const DB_USER = await reader.readSecret(dbKeys.path, dbKeys.userKey);
-  const DB_PASSWORD = await reader.readSecret(dbKeys.path, dbKeys.passwordKey);
+  const DB_USER = data.username;
+  const DB_PASSWORD = data.password;
 
   return {
     DB_USER,

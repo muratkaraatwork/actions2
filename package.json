@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "dotenv": "^17.2.3",
+    "node-vault": "^0.10.9",
     "oracledb": "^6.10.0"
   }
 }

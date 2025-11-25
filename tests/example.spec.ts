@@ -1,16 +1,18 @@
 import { test, expect } from '@playwright/test';
 import { loadConfig } from '../config';
-import { VaultReader, vaultEnvConfig, vaultDbKeysFromEnv } from '../vault';
+import config from '../config.json'
 
 test('has title', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
+  const url = config['url'];
+  await page.goto(url);
 
   // Expect a title "to contain" a substring.
   await expect(page).toHaveTitle(/Playwright/);
 });
 
 test('get started link', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
+   const url = config['url'];
+   await page.goto(url);
 
   // Click the get started link.
   await page.getByRole('link', { name: 'Get started' }).click();
@@ -41,4 +43,12 @@ test('get credentials ', async () => {
     console.log("Local DB_USER:", DB_USER);
     console.log("Local DB_PASSWORD:", DB_PASSWORD);
   }
+});
+
+test('get credentialsTwo ', async () => {
+ const config = loadConfig();
+ const DB_PASSWORD = (await config).DB_PASSWORD;
+ const DB_USER = (await config).DB_USER;
+  console.log("DB_USER:", DB_USER);
+  console.log("DB_PASSWORD:", DB_PASSWORD);
 });

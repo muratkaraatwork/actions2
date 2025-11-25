@@ -122,19 +122,26 @@ export class VaultClient {
  * Loads Vault AppRole environment variables.
  */
 export function vaultConfigFromEnv(): AppRoleAuthOptions | null {
-  const address = process.env.VAULT_ADDR;
-  const roleId = process.env.VAULT_ROLE_ID;
-  const secretId = process.env.VAULT_SECRET_ID;
+  const address =
+    process.env.VAULT_ADDR ||
+    process.env.VAULT_URL ||                    // Jenkins bazen VAULT_URL verir
+    "http://127.0.0.1:8200";                    // Fallback → ENSURE NOT NULL
 
-  if (!address || !roleId || !secretId) {
-    return null;
-  }
+  const roleId =
+    process.env.VAULT_ROLE_ID ||
+    process.env.ROLE_ID ||                      // Jenkins plugin’den gelebilir
+    "";
+
+  const secretId =
+    process.env.VAULT_SECRET_ID ||
+    process.env.SECRET_ID ||                    // Jenkins plugin’den gelebilir
+    "";
 
   return {
     address,
     roleId,
     secretId,
-    namespace: process.env.VAULT_NAMESPACE,
+    namespace: process.env.VAULT_NAMESPACE ?? "",
     timeoutMs: Number(process.env.VAULT_TIMEOUT_MS ?? 5000),
   };
 }

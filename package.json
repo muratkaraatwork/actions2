@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "mtest": "npx playwright test tests/example.spec.ts"
+    "mtest": "npx playwright test tests/example.spec.ts",
+    "mtest:vault": "npx playwright test tests/example.spec.ts -g \"get credentials from vault\""
   },
   "repository": {
     "type": "git",

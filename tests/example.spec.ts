@@ -53,3 +53,7 @@ test('get credentialsTwo ', async () => {
   console.log("DB_USER:----------------------", DB_USER);
   console.log("DB_PASSWORD:-------------------", DB_PASSWORD);
 });
+
+test('get credentials from vault', async () => {
+  console.log(`get credentials from vault is running`);
+});

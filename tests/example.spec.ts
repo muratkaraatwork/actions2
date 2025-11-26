@@ -46,9 +46,10 @@ test('get credentials ', async () => {
 });
 
 test('get credentialsTwo ', async () => {
+  console.log(`get credentials two is running`)
  const config = loadConfig();
  const DB_PASSWORD = (await config).DB_PASSWORD;
  const DB_USER = (await config).DB_USER;
-  console.log("DB_USER:", DB_USER);
-  console.log("DB_PASSWORD:", DB_PASSWORD);
+  console.log("DB_USER:----------------------", DB_USER);
+  console.log("DB_PASSWORD:-------------------", DB_PASSWORD);
 });

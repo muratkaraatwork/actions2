@@ -9,8 +9,7 @@ export type AppRoleAuthOptions = {
 type FetchFn = typeof fetch;
 
 /**
- * Vault KV v2 reader with AppRole authentication.
- * Uses native fetch and no external dependencies.
+ * Vault KV client with AppRole authentication. Works for KV v1 and v2.
  */
 export class VaultClient {
   private readonly address: string;
@@ -31,7 +30,7 @@ export class VaultClient {
     this.fetchFn = fetchFn;
   }
 
-  /** 
+  /**
    * Performs AppRole Authentication and retrieves a client token.
    */
   private async loginWithAppRole(): Promise<void> {
@@ -84,7 +83,7 @@ export class VaultClient {
   }
 
   /**
-   * Reads a KV v2 secret at a given path.
+   * Reads a secret at a given path. Works with KV v1 or v2 response shapes.
    */
   async readSecret(path: string): Promise<Record<string, any>> {
     await this.ensureToken();
@@ -105,16 +104,34 @@ export class VaultClient {
 
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(
-          `Vault read failed (${response.status}): ${text}`
-        );
+        throw new Error(`Vault read failed (${response.status}): ${text}`);
       }
 
       const json = await response.json();
+      // KV v2 returns { data: { data: {...} } }, KV v1 returns { data: {...} }
       return json?.data?.data ?? json?.data ?? {};
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  /**
+   * Helper for KV v2: mount/data/secretPath
+   * Example: readKv2("qa-automation", "DB_CREDS/PAPI_E")
+   */
+  async readKv2(mount: string, secretPath: string): Promise<Record<string, any>> {
+    const normalizedMount = mount.replace(/\/+$/, "");
+    const normalizedSecret = secretPath.replace(/^\/+/, "");
+    return this.readSecret(`${normalizedMount}/data/${normalizedSecret}`);
+  }
+
+  /**
+   * Helper for KV v1: mount/secretPath
+   */
+  async readKv1(mount: string, secretPath: string): Promise<Record<string, any>> {
+    const normalizedMount = mount.replace(/\/+$/, "");
+    const normalizedSecret = secretPath.replace(/^\/+/, "");
+    return this.readSecret(`${normalizedMount}/${normalizedSecret}`);
   }
 }
 
@@ -124,17 +141,17 @@ export class VaultClient {
 export function vaultConfigFromEnv(): AppRoleAuthOptions | null {
   const address =
     process.env.VAULT_ADDR ||
-    process.env.VAULT_URL ||                    // Jenkins bazen VAULT_URL verir
-    "http://127.0.0.1:8200";                    // Fallback → ENSURE NOT NULL
+    process.env.VAULT_URL || // Jenkins bazen VAULT_URL verir
+    "http://127.0.0.1:8200"; // Fallback: local dev server
 
   const roleId =
     process.env.VAULT_ROLE_ID ||
-    process.env.ROLE_ID ||                      // Jenkins plugin’den gelebilir
+    process.env.ROLE_ID || // Jenkins plugin'den gelebilir
     "";
 
   const secretId =
     process.env.VAULT_SECRET_ID ||
-    process.env.SECRET_ID ||                    // Jenkins plugin’den gelebilir
+    process.env.SECRET_ID || // Jenkins plugin'den gelebilir
     "";
 
   return {
